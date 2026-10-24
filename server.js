@@ -24,6 +24,8 @@ const io = new Server(server, {
     cors: { origin: 'http://localhost:3000' }
 });
 
+const roomLikes = {}
+
 io.on('connection', (socket) => {
     console.log('A new player is online. Connection ID:', socket.id);
 
@@ -43,7 +45,20 @@ io.on('connection', (socket) => {
     socket.on('swipe', (data) => {
         try {
             const parsedData = swipeSchema.parse(data)
+            const { action, gameId, roomId } = parsedData
             console.log(`Player ${socket.id} set ${parsedData.action} game ${parsedData.gameId} in room ${parsedData.roomId}`);
+
+            if (action === 'LIKE') {
+                if (!roomLikes[roomId]) {
+                    roomLikes[roomId] = {}
+                }
+                if (roomLikes[roomId][gameId] && roomLikes[roomId][gameId] !== socket.id) {
+                    console.log(`🎉 MATCH IN ROOM ${roomId}! GAME: ${gameId}`)
+                    io.to(roomId).emit('match', {gameId})
+                } else {
+                    roomLikes[roomId][gameId] = socket.id
+                }
+            }
         } catch(err) {
             console.error("Zod error when swiping:", err.errors)
         }
