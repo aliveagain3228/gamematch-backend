@@ -2,6 +2,18 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const { z } = require('zod')
+
+
+const joinRoomSchema = z.object({
+    roomId: z.string().min(1, "The room ID cannot be empty")
+})
+
+const swipeSchema = z.object({
+    roomId: z.string(),
+    gameId: z.number(),
+    action: z.enum(['LIKE', 'DISLIKE'])
+})
 
 const app = express();
 app.use(cors());
@@ -14,6 +26,28 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
     console.log('A new player is online. Connection ID:', socket.id);
+
+    socket.on('join_room', (data) => {
+        try {
+            const parsedData = joinRoomSchema.parse(data)
+            const room = parsedData.roomId
+
+            socket.join(room);
+            console.log(`Player ${socket.id} joined in room: ${room}`);
+            socket.to(room).emit('player_joined', { message: 'A second player has joined!' })
+        } catch (err) {
+            console.error("Zod validation error:", err.errors);
+        }
+    })
+
+    socket.on('swipe', (data) => {
+        try {
+            const parsedData = swipeSchema.parse(data)
+            console.log(`Player ${socket.id} set ${parsedData.action} game ${parsedData.gameId} in room ${parsedData.roomId}`);
+        } catch(err) {
+            console.error("Zod error when swiping:", err.errors)
+        }
+    })
 
     socket.on('disconnect', () => {
         console.log('A new player is offline:', socket.id);
