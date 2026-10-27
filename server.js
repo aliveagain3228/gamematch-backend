@@ -26,6 +26,9 @@ const io = new Server(server, {
 
 const roomLikes = {}
 
+const roomPages = {}
+
+
 io.on('connection', (socket) => {
     console.log('A new player is online. Connection ID:', socket.id);
 
@@ -34,9 +37,14 @@ io.on('connection', (socket) => {
             const parsedData = joinRoomSchema.parse(data)
             const room = parsedData.roomId
 
-            socket.join(room);
-            console.log(`Player ${socket.id} joined in room: ${room}`);
+            if (!roomPages[room]) {
+                roomPages[room] = Math.floor(Math.random() * 100) + 1
+            }
+
+            console.log(`Player ${socket.id} joined in room: ${room}. Start page: ${roomPages[room]}`)
+            socket.emit('room_setup', { startPage: roomPages[room] })
             socket.to(room).emit('player_joined', { message: 'A second player has joined!' })
+
         } catch (err) {
             console.error("Zod validation error:", err.errors);
         }
