@@ -37,6 +37,8 @@ io.on('connection', (socket) => {
             const parsedData = joinRoomSchema.parse(data)
             const room = parsedData.roomId
 
+            socket.join(room)
+
             if (!roomPages[room]) {
                 roomPages[room] = Math.floor(Math.random() * 100) + 1
             }
