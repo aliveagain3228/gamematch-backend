@@ -6,7 +6,8 @@ const { z } = require('zod')
 
 
 const joinRoomSchema = z.object({
-    roomId: z.string().min(1, "The room ID cannot be empty")
+    roomId: z.string().min(1, "The room ID cannot be empty"),
+    filter: z.string().optional()
 })
 
 const swipeSchema = z.object({
@@ -28,6 +29,8 @@ const roomLikes = {}
 
 const roomPages = {}
 
+const roomFilters = {}
+
 
 io.on('connection', (socket) => {
     console.log('A new player is online. Connection ID:', socket.id);
@@ -37,14 +40,15 @@ io.on('connection', (socket) => {
             const parsedData = joinRoomSchema.parse(data)
             const room = parsedData.roomId
 
-            socket.join(room)
+            socket.join(String(room))
 
             if (!roomPages[room]) {
                 roomPages[room] = Math.floor(Math.random() * 100) + 1
+                roomFilters[room] = parsedData.filter || ""
             }
 
-            console.log(`Player ${socket.id} joined in room: ${room}. Start page: ${roomPages[room]}`)
-            socket.emit('room_setup', { startPage: roomPages[room] })
+            console.log(`Player ${socket.id} joined in room: ${room}. Start page: ${roomPages[room]}, Filter: ${roomFilters[room]}`)
+            socket.emit('room_setup', { startPage: roomPages[room], filter: roomFilters[room] })
             socket.to(room).emit('player_joined', { message: 'A second player has joined!' })
 
         } catch (err) {
@@ -64,7 +68,7 @@ io.on('connection', (socket) => {
                 }
                 if (roomLikes[roomId][gameId] && roomLikes[roomId][gameId] !== socket.id) {
                     console.log(`🎉 MATCH IN ROOM ${roomId}! GAME: ${gameId}`)
-                    io.to(roomId).emit('match', {gameId})
+                    io.to(String(roomId)).emit('match', {gameId})
                 } else {
                     roomLikes[roomId][gameId] = socket.id
                 }
