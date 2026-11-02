@@ -7,13 +7,15 @@ const { z } = require('zod')
 
 const joinRoomSchema = z.object({
     roomId: z.string().min(1, "The room ID cannot be empty"),
-    filter: z.string().optional()
+    filter: z.string().optional(),
+    userId: z.string().optional(),
 })
 
 const swipeSchema = z.object({
     roomId: z.string(),
     gameId: z.number(),
-    action: z.enum(['LIKE', 'DISLIKE'])
+    action: z.enum(['LIKE', 'DISLIKE']),
+    userId: z.string().optional(),
 })
 
 const app = express();
@@ -49,9 +51,10 @@ io.on('connection', (socket) => {
                 roomFilters[room] = parsedData.filter || ""
             }
 
-            console.log(`Player ${socket.id} joined in room: ${room}. Start page: ${roomPages[room]}, Filter: ${roomFilters[room]}`)
             socket.emit('room_setup', { startPage: roomPages[room], filter: roomFilters[room] })
             socket.to(room).emit('player_joined', { message: 'A second player has joined!' })
+            const user = parsedData.userId || socket.id
+            console.log(`Player ${user} joined room: ${room}. Start page: ${roomPages[room]}, Filter: ${roomFilters[room]}`)
 
         } catch (err) {
             console.error("Zod validation error:", err.errors);
@@ -61,18 +64,21 @@ io.on('connection', (socket) => {
     socket.on('swipe', (data) => {
         try {
             const parsedData = swipeSchema.parse(data)
-            const { action, gameId, roomId } = parsedData
+            const { action, gameId, roomId, userId } = parsedData
+            const currentUserId = userId || socket.id
+
+
             console.log(`Player ${socket.id} set ${parsedData.action} game ${parsedData.gameId} in room ${parsedData.roomId}`);
 
             if (action === 'LIKE') {
                 if (!roomLikes[roomId]) {
                     roomLikes[roomId] = {}
                 }
-                if (roomLikes[roomId][gameId] && roomLikes[roomId][gameId] !== socket.id) {
+                if (roomLikes[roomId][gameId] && roomLikes[roomId][gameId] !== currentUserId) {
                     console.log(`🎉 MATCH IN ROOM ${roomId}! GAME: ${gameId}`)
                     io.to(String(roomId)).emit('match', {gameId})
                 } else {
-                    roomLikes[roomId][gameId] = socket.id
+                    roomLikes[roomId][gameId] = currentUserId
                 }
             }
         } catch(err) {
