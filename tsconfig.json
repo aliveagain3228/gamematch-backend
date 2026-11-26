@@ -1,14 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
+    "target": "ES2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": "dist",
+    "rootDir": ".",
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist"
+    "types": ["node"],
+    "sourceMap": true
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["server.ts", "src/**/*.ts"]
 }
