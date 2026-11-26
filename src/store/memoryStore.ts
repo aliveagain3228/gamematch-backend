@@ -1,5 +1,11 @@
-export const roomLikes: Record<string, Record<number, string>> = {}
+export interface RoomState {
+    startPage: number
+    filter: string
+    likes: Map<number, Set<string>>
+    matched: Set<number>
+    cleanupTimer: ReturnType<typeof setTimeout> | null
+}
 
-export const roomPages: Record<string, number> = {}
+export const rooms = new Map<string, RoomState>()
 
-export const roomFilters: Record<string, string> = {}
+export const onlineUsers = new Map<string, Set<string>>()
