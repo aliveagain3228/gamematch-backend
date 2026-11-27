@@ -1,4 +1,4 @@
-import { joinRoomSchema, swipeSchema, unswipeSchema } from '../schemas/validation'
+import { joinRoomSchema, leaveRoomSchema, swipeSchema, unswipeSchema } from '../schemas/validation'
 import { rooms, type RoomState } from '../store/memoryStore'
 import { config } from '../config'
 import type { AppServer, AppSocket } from '../types/socket'
@@ -18,6 +18,27 @@ const getRoomUserIds = (io: AppServer, roomKey: string) => {
 
     return userIds
 }
+
+const hasOtherSocketOfUser = (io: AppServer, roomKey: string, userId: string, exceptSocketId: string) => {
+    const socketIds = io.sockets.adapter.rooms.get(roomKey)
+
+    if (!socketIds) return false
+
+    for (const socketId of socketIds) {
+        if (socketId === exceptSocketId) continue
+        if (io.sockets.sockets.get(socketId)?.data.userId === userId) return true
+    }
+
+    return false
+}
+
+const removeUserLikes = (room: RoomState, userId: string) => {
+    for (const likedBy of room.likes.values()) {
+        likedBy.delete(userId)
+    }
+}
+
+const PARTNER_LEFT_MESSAGE = 'Your partner left the room'
 
 const createRoom = (filter: string): RoomState => ({
     startPage: Math.floor(Math.random() * config.maxStartPage) + 1,
@@ -117,6 +138,29 @@ export const registerRoomHandlers = (io: AppServer, socket: AppSocket) => {
         console.log(`Player ${userId} joined room ${roomId}`)
     })
 
+    socket.on('leave_room', async (data) => {
+        const parsed = leaveRoomSchema.safeParse(data)
+
+        if (!parsed.success) return
+
+        const roomKey = toRoomKey(parsed.data.roomId)
+
+        if (!socket.rooms.has(roomKey)) return
+
+        await socket.leave(roomKey)
+
+        if (!hasOtherSocketOfUser(io, roomKey, userId, socket.id)) {
+            const room = rooms.get(roomKey)
+
+            if (room) removeUserLikes(room, userId)
+
+            io.to(roomKey).emit('player_left', { message: PARTNER_LEFT_MESSAGE })
+        }
+
+        scheduleCleanup(io, roomKey)
+        console.log(`Player ${userId} left room ${parsed.data.roomId}`)
+    })
+
     socket.on('swipe', (data) => {
         const parsed = swipeSchema.safeParse(data)
 
@@ -151,9 +195,13 @@ export const registerRoomHandlers = (io: AppServer, socket: AppSocket) => {
 
     socket.on('disconnecting', () => {
         for (const roomKey of socket.rooms) {
-            if (roomKey.startsWith('room:')) {
-                scheduleCleanup(io, roomKey)
+            if (!roomKey.startsWith('room:')) continue
+
+            if (!hasOtherSocketOfUser(io, roomKey, userId, socket.id)) {
+                socket.to(roomKey).emit('player_left', { message: PARTNER_LEFT_MESSAGE })
             }
+
+            scheduleCleanup(io, roomKey)
         }
     })
 }

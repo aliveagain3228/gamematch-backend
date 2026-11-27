@@ -18,6 +18,10 @@ export const joinRoomSchema = z.object({
     liked: z.array(gameIdField).max(500).optional(),
 })
 
+export const leaveRoomSchema = z.object({
+    roomId: roomIdField,
+})
+
 export const swipeSchema = z.object({
     roomId: roomIdField,
     gameId: gameIdField,
@@ -34,3 +38,5 @@ export const checkOnlineSchema = z.array(z.string().min(1).max(64)).max(200)
 export type JoinRoomData = z.infer<typeof joinRoomSchema>
 export type SwipeData = z.infer<typeof swipeSchema>
 export type UnswipeData = z.infer<typeof unswipeSchema>
+
+export type LeaveRoomData = z.infer<typeof leaveRoomSchema>
